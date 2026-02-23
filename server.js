@@ -6,6 +6,7 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true })); // Para recibir form data
 
 // Base de datos simulada de usuarios
 const usuarios = [
@@ -14,31 +15,42 @@ const usuarios = [
   { email: 'admin@test.com', password: 'admin123' }
 ];
 
-// Endpoint de login
+// Endpoint de login (igual que la API original)
 app.post('/login', (req, res) => {
-  const { email, password } = req.body;
+  const { usuario, password } = req.body;
+
+  console.log('Login attempt:', { usuario, password });
 
   // Validar que vengan los datos
-  if (!email || !password) {
-    return res.status(400).json({ 
-      success: false, 
-      message: 'Email y contraseña son requeridos' 
+  if (!usuario || !password) {
+    return res.json({
+      response: {
+        msg: 'error',
+        message: 'Usuario y contraseña son requeridos'
+      }
     });
   }
 
   // Buscar usuario
-  const usuario = usuarios.find(u => u.email === email && u.password === password);
+  const user = usuarios.find(u => u.email === usuario && u.password === password);
 
-  if (usuario) {
-    return res.json({ 
-      success: true, 
-      message: 'Login exitoso',
-      user: { email: usuario.email }
+  if (user) {
+    // Login exitoso - responder en el formato que espera la app
+    return res.json({
+      response: {
+        msg: 'success_login',
+        idv: '12345',
+        cuentaCreada: '2024-01-01',
+        plan: '1' // Plan premium
+      }
     });
   } else {
-    return res.status(401).json({ 
-      success: false, 
-      message: 'Credenciales incorrectas' 
+    // Credenciales incorrectas
+    return res.json({
+      response: {
+        msg: 'error',
+        message: 'Credenciales incorrectas'
+      }
     });
   }
 });
