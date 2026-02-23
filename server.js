@@ -55,8 +55,6 @@ app.post('/login', async (req, res) => {
   try {
     const { usuario, password, id, modelo } = req.body;
 
-    console.log('Login attempt:', { usuario, password, id, modelo });
-
     if (!usuario || !password) {
       return res.json({
         response: {
@@ -82,8 +80,8 @@ app.post('/login', async (req, res) => {
     const deviceId = id || 'unknown';
     const sesionesActivas = await Sesion.find({ email: usuario });
     
-    // Límite de dispositivos: 2
-    const LIMITE_DISPOSITIVOS = 2;
+    // Límite de dispositivos
+    const LIMITE_DISPOSITIVOS = process.env.LIMITE_DISPOSITIVOS;
 
     // Verificar si este dispositivo ya tiene sesión
     const sesionExistente = sesionesActivas.find(s => s.deviceId === deviceId);
@@ -185,6 +183,51 @@ app.post('/eliminar-sesion', async (req, res) => {
   } catch (error) {
     console.error('Error eliminando sesión:', error);
     return res.json({ error: 'Error del servidor' });
+  }
+});
+
+// Endpoint para obtener sesiones activas (formato compatible con la app)
+app.get('/sesiones_activas_api.php', async (req, res) => {
+  try {
+    const { correo } = req.query;
+    
+    if (!correo) {
+      return res.json([]);
+    }
+
+    const sesiones = await Sesion.find({ email: correo });
+    
+    return res.json(
+      sesiones.map(s => ({
+        id: s._id.toString(),
+        device_id: s.deviceId,
+        modelo: s.deviceModel,
+        last_active: s.lastActive
+      }))
+    );
+
+  } catch (error) {
+    console.error('Error obteniendo sesiones:', error);
+    return res.json([]);
+  }
+});
+
+// Endpoint para eliminar dispositivo (formato compatible con la app)
+app.post('/eliminar_device.php', async (req, res) => {
+  try {
+    const { id } = req.body;
+    
+    if (!id) {
+      return res.json({ success: false, message: 'ID requerido' });
+    }
+
+    await Sesion.findByIdAndDelete(id);
+    
+    return res.json({ success: true, message: 'Dispositivo eliminado' });
+
+  } catch (error) {
+    console.error('Error eliminando sesión:', error);
+    return res.json({ success: false, message: 'Error del servidor' });
   }
 });
 
