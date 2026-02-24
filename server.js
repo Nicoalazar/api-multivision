@@ -5,7 +5,7 @@ const bcrypt = require('bcrypt');
 require('dotenv').config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT;
 
 // Middleware
 app.use(cors());
@@ -16,7 +16,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
 
 // Conectar a MongoDB
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/multivision')
+mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('✅ Conectado a MongoDB'))
   .catch(err => console.error('❌ Error conectando a MongoDB:', err));
 
@@ -46,8 +46,8 @@ sesionSchema.index({ email: 1, deviceId: 1 });
 const Sesion = mongoose.model('Sesion', sesionSchema);
 
 // Configuración
-const LIMITE_DISPOSITIVOS = parseInt(process.env.LIMITE_DISPOSITIVOS) || 2;
-const ADMIN_SECRET = process.env.ADMIN_SECRET || 'cambiar_este_secreto_en_produccion';
+const LIMITE_DISPOSITIVOS = parseInt(process.env.LIMITE_DISPOSITIVOS);
+const ADMIN_SECRET = process.env.ADMIN_SECRET;
 
 // Middleware de autenticación para endpoints admin
 const requireAdminAuth = (req, res, next) => {
@@ -163,6 +163,45 @@ app.post('/login', async (req, res) => {
         msg: 'error',
         message: 'Error del servidor'
       }
+    });
+  }
+});
+
+// Endpoint de logout (cerrar sesión)
+app.post('/logout', async (req, res) => {
+  try {
+    const { email, deviceId } = req.body;
+
+    if (!email || !deviceId) {
+      return res.json({
+        success: false,
+        message: 'Email y deviceId son requeridos'
+      });
+    }
+
+    // Eliminar la sesión específica de este dispositivo
+    const resultado = await Sesion.deleteOne({ 
+      email: email.toLowerCase().trim(), 
+      deviceId: deviceId 
+    });
+
+    if (resultado.deletedCount > 0) {
+      return res.json({
+        success: true,
+        message: 'Sesión cerrada exitosamente'
+      });
+    } else {
+      return res.json({
+        success: false,
+        message: 'Sesión no encontrada'
+      });
+    }
+
+  } catch (error) {
+    console.error('Error en logout:', error);
+    return res.json({
+      success: false,
+      message: 'Error del servidor'
     });
   }
 });
