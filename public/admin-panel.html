@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>⚽ Panel Admin - Fulbo</title>
+    <title>Panel Admin - Fulbo</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>⚽</text></svg>">
     <style>
         * {
             margin: 0;
@@ -269,6 +270,16 @@
             color: #999;
         }
 
+        #logoutBtn {
+            background: #f44336;
+            color: white;
+            padding: 10px 20px;
+        }
+
+        #logoutBtn:hover {
+            background: #da190b;
+        }
+
         @media (max-width: 768px) {
             .stats {
                 grid-template-columns: 1fr;
@@ -290,6 +301,9 @@
         <div class="header">
             <h1>⚽ Panel Admin - Fulbo</h1>
             <p>Gestión de usuarios y sesiones</p>
+            <button id="logoutBtn" class="btn btn-danger hidden" onclick="cerrarSesion()" style="margin-top: 15px;">
+                🚪 Cerrar Sesión
+            </button>
         </div>
 
         <!-- Sección de autenticación -->
@@ -375,6 +389,7 @@
                 if (response.ok) {
                     document.getElementById('authSection').classList.add('hidden');
                     document.getElementById('mainPanel').classList.remove('hidden');
+                    document.getElementById('logoutBtn').classList.remove('hidden');
                     cargarEstadisticas();
                     cargarUsuarios();
                     cargarSesiones();
@@ -664,6 +679,23 @@
             } catch (error) {
                 alert('Error limpiando sesiones');
             }
+        }
+        function cerrarSesion() {
+            if (!confirm('¿Cerrar sesión del panel admin?')) return;
+            
+            // Limpiar datos
+            API_URL = '';
+            ADMIN_TOKEN = '';
+            todosLosUsuarios = [];
+            
+            // Limpiar inputs
+            document.getElementById('apiUrl').value = 'https://api-multivision.onrender.com';
+            document.getElementById('adminSecret').value = '';
+            
+            // Mostrar auth, ocultar panel
+            document.getElementById('authSection').classList.remove('hidden');
+            document.getElementById('mainPanel').classList.add('hidden');
+            document.getElementById('logoutBtn').classList.add('hidden');
         }
     </script>
 </body>
