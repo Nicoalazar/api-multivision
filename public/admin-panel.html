@@ -152,6 +152,17 @@
             margin-right: 10px;
         }
 
+        .btn-panel {
+            padding: 12px 5px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-right: 10px;
+            width: 120px;
+        }
+
         .btn-primary {
             background: #667eea;
             color: white;
@@ -179,6 +190,15 @@
 
         .btn-success:hover {
             background: #45a049;
+        }
+
+        .btn-warning {
+            background: #ff9800;
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background: #e68a00;
         }
 
         table {
@@ -335,8 +355,8 @@
                     <div class="form-group">
                         <label>Plan:</label>
                         <select id="newPlan">
-                            <option value="1">Premium</option>
-                            <option value="0">Básico</option>
+                            <option value="1">Futbol</option>
+                            <option value="0">Premium</option>
                         </select>
                     </div>
                     <button type="submit" class="btn btn-success">Crear Usuario</button>
@@ -512,8 +532,8 @@
                 `;
             } else {
                 usuarios.forEach(user => {
-                    const planBadge = user.plan === '1' ? 'badge-premium' : 'badge-basico';
-                    const planText = user.plan === '1' ? 'Premium' : 'Básico';
+                    const planBadge = user.plan === '1' ? 'badge-basico' : 'badge-premium';
+                    const planText = user.plan === '1' ? 'Futbol' : 'Premium';
                     const estadoBadge = user.activo ? 'badge-activo' : 'badge-inactivo';
                     const estadoText = user.activo ? 'Activo' : 'Inactivo';
 
@@ -525,11 +545,12 @@
                             <td>${new Date(user.fechaCreacion).toLocaleDateString()}</td>
                             <td>${new Date(user.ultimoAcceso).toLocaleDateString()}</td>
                             <td>
-                                <button class="btn btn-primary" onclick="toggleEstado('${user._id}', ${!user.activo})">
+                                <button class="btn-panel btn-danger" onclick="toggleEstado('${user._id}', ${!user.activo})">
                                     ${user.activo ? 'Desactivar' : 'Activar'}
                                 </button>
-                                <button class="btn btn-success" onclick="resetPasswordRapido('${user._id}', '${user.email}')">🔑 Reset Pass</button>
-                                <button class="btn btn-danger" onclick="eliminarUsuario('${user._id}')">Eliminar</button>
+                                <button class="btn-panel btn-warning" onclick="resetPasswordRapido('${user._id}', '${user.email}')">Reset Pass</button>
+                                <button class="btn-panel btn-primary" onclick="cambiarPlan('${user._id}')">Cambiar Plan</button>
+                                <!-- <button class="btn-panel btn-success" onclick="eliminarUsuario('${user._id}')">Eliminar</button> -->
                             </td>
                         </tr>
                     `;
@@ -605,6 +626,29 @@
             }
         }
 
+        async function cambiarPlan(id) {
+            const nuevoPlan = prompt('Ingresa el nuevo plan (0 para premium, 1 para futbol):');
+
+            if (!nuevoPlan || nuevoPlan.trim() === '') {
+                alert('❌ Plan no puede estar vacía');
+                return;
+            }
+
+            try {
+                await fetch(`${API_URL}/admin/usuarios/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${ADMIN_TOKEN}`
+                    },
+                    body: JSON.stringify({ plan: nuevoPlan })
+                });
+                cargarUsuarios();
+                cargarEstadisticas();
+            } catch (error) {
+                alert('Error actualizando usuario');
+            }
+        }
         async function eliminarUsuario(id) {
             if (!confirm('¿Estás seguro de eliminar este usuario?')) return;
 
