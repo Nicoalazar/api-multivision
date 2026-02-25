@@ -458,6 +458,8 @@
             const password = document.getElementById('newPassword').value;
             const plan = document.getElementById('newPlan').value;
 
+            if(!confirm(`Crear usuario ${email} con plan ${plan === '1' ? 'Futbol' : 'Premium'}?`)) return;
+
             try {
                 const response = await fetch(`${API_URL}/admin/usuarios`, {
                     method: 'POST',
@@ -610,6 +612,7 @@
             }
         }
         async function toggleEstado(id, nuevoEstado) {
+            if (!confirm(`¿${nuevoEstado ? 'Activar' : 'Desactivar'} el usuario?`)) return;
             try {
                 await fetch(`${API_URL}/admin/usuarios/${id}`, {
                     method: 'PUT',
@@ -680,6 +683,7 @@
                                 <th>Device ID</th>
                                 <th>Modelo</th>
                                 <th>Última Actividad</th>
+                                <th>Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -692,6 +696,9 @@
                             <td>${sesion.deviceId.substring(0, 20)}...</td>
                             <td>${sesion.deviceModel}</td>
                             <td>${new Date(sesion.lastActive).toLocaleString()}</td>
+                            <td>
+                                <button class="btn btn-danger" onclick="logout('${sesion.email}', '${sesion.deviceId}')">Cerrar</button>
+                            </td>
                         </tr>
                     `;
                 });
@@ -757,6 +764,23 @@
                 }
             } catch (error) {
                 alert('❌ Error: ' + error.message);
+            }
+        }
+
+        async function logout(email, deviceId) {
+            if (!confirm('¿Cerrar sesión de este dispositivo?')) return;
+            try {
+                await fetch(`${API_URL}/logout`, {
+                    method: 'POST',
+                    headers: {
+                    'Content-Type': 'application/json'
+                },
+                    body: JSON.stringify({ email, deviceId })
+                });
+                alert('✅ Sesión cerrada exitosamente');
+                cargarSesiones();
+            } catch (error) {
+                alert('❌ Error cerrando sesión');
             }
         }
     </script>
