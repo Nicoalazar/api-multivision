@@ -347,7 +347,7 @@
             <div class="section">
                 <h2>👥 Usuarios</h2>
                 <button onclick="cargarUsuarios()" class="btn btn-primary">🔄 Actualizar</button>
-                
+                <button onclick="limpiarCache()" class="btn btn-danger">🗑️ Limpiar Caché de Contenido</button>
                 <!-- Filtro de búsqueda -->
                 <div class="form-group" style="margin-top: 20px;">
                     <input type="text" id="searchInput" placeholder="🔍 Buscar por email..." onkeyup="filtrarUsuarios()">
@@ -696,6 +696,24 @@
             document.getElementById('authSection').classList.remove('hidden');
             document.getElementById('mainPanel').classList.add('hidden');
             document.getElementById('logoutBtn').classList.add('hidden');
+        }
+        async function limpiarCache() {
+            if (!confirm('¿Limpiar caché de contenido? Los usuarios obtendrán contenido fresco.')) return;
+
+            try {
+                const response = await fetch(`${API_URL}/admin/clear-cache`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${ADMIN_TOKEN}` }
+                });
+
+                if (response.ok) {
+                    alert('✅ Caché limpiado exitosamente');
+                } else {
+                    alert('❌ Error limpiando caché');
+                }
+            } catch (error) {
+                alert('❌ Error: ' + error.message);
+            }
         }
     </script>
 </body>

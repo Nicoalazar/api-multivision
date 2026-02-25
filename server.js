@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
+const fetch = require('node-fetch');
 require('dotenv').config();
 
 const app = express();
@@ -24,7 +25,7 @@ mongoose.connect(process.env.MONGODB_URI)
 const usuarioSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
   password: { type: String, required: true },
-  plan: { type: String, default: '1', enum: ['0', '1'] }, // 0: básico, 1: premium
+  plan: { type: String, default: '1', enum: ['0', '1'] }, // 0: fulbo, 1: premium
   activo: { type: Boolean, default: true },
   fechaCreacion: { type: Date, default: Date.now },
   ultimoAcceso: { type: Date, default: Date.now }
@@ -449,6 +450,162 @@ app.get('/admin/stats', requireAdminAuth, async (req, res) => {
     console.error('Error obteniendo estadísticas:', error);
     return res.status(500).json({ error: 'Error del servidor' });
   }
+});
+
+// ==================== ENDPOINT DE CONTENIDO UNIFICADO ====================
+
+// Caché para optimizar performance
+let cachedPremiumData = null;
+let lastFetch = 0;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
+const API_MASTER_URL = process.env.API_MASTER_URL;
+
+// Configuración de filtrado
+const CATEGORIAS_BASICAS = process.env.CATEGORIAS_BASICAS 
+  ? process.env.CATEGORIAS_BASICAS.split(',').map(c => c.trim().toLowerCase()) 
+  : ['deportivos'];
+const CANALES_BLOQUEADOS_PREMIUM = process.env.CANALES_BLOQUEADOS_PREMIUM 
+  ? process.env.CANALES_BLOQUEADOS_PREMIUM.split(',').map(c => c.trim()) 
+  : [];
+
+console.log('⚙️ Configuración de filtrado:');
+console.log('   Categorías plan básico:', CATEGORIAS_BASICAS);
+console.log('   Canales bloqueados en premium:', CANALES_BLOQUEADOS_PREMIUM);
+
+
+app.get('/content', async (req, res) => {
+  try {
+    const { plan } = req.query;
+    const now = Date.now();
+
+    console.log(`📥 Request recibido - plan: "${plan}" (tipo: ${typeof plan})`);
+
+    // Usar caché si está disponible y no expiró
+    if (cachedPremiumData && (now - lastFetch < CACHE_DURATION)) {
+      console.log('✅ Usando caché de contenido');
+      
+      if (plan === '0') {
+        console.log('🔍 Plan básico - Filtrando solo DEPORTIVOS...');
+        const data = filterBasicContent(cachedPremiumData);
+        return res.json(data);
+      } else {
+        console.log('💎 Plan premium - Bloqueando canales específicos...');
+        const data = filterPremiumContent(cachedPremiumData);
+        return res.json(data);
+      }
+    }
+
+    // Fetch nuevo contenido premium
+    console.log('🔄 Fetching contenido premium...');
+    const response = await fetch(API_MASTER_URL);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    // Actualizar caché
+    cachedPremiumData = data;
+    lastFetch = now;
+
+    // Filtrar según plan
+    let finalData;
+    if (plan === '0') {
+      console.log('🔍 Plan básico - Filtrando solo DEPORTIVOS...');
+      finalData = filterBasicContent(data);
+    } else {
+      console.log('💎 Plan premium - Bloqueando canales específicos...');
+      finalData = filterPremiumContent(data);
+    }
+    
+    console.log(`📦 Sirviendo contenido para plan ${plan}`);
+    return res.json(finalData);
+
+  } catch (error) {
+    console.error('❌ Error obteniendo contenido:', error);
+    
+    // Si hay caché disponible, usarlo como fallback
+    if (cachedPremiumData) {
+      console.log('⚠️ Usando caché como fallback');
+      const data = req.query.plan === '0' 
+        ? filterBasicContent(cachedPremiumData) 
+        : filterPremiumContent(cachedPremiumData);
+      return res.json(data);
+    }
+    
+    return res.status(500).json({ 
+      error: 'Error obteniendo contenido',
+      message: error.message 
+    });
+  }
+});
+
+// Filtrado para plan básico: solo categorías específicas
+function filterBasicContent(premiumData) {
+  if (!Array.isArray(premiumData)) {
+    return premiumData;
+  }
+
+  console.log('🔍 Filtrando contenido básico...');
+
+  // Filtrar solo categorías permitidas
+  const categoriasFiltradas = premiumData.filter(categoria => {
+    const nombreCategoria = (categoria.name || categoria.nombre || '').toLowerCase();
+    const esBasica = CATEGORIAS_BASICAS.some(cat => nombreCategoria.includes(cat));
+    if (esBasica) {
+      console.log(`  ✅ Categoría incluida: ${categoria.name}`);
+    }
+    return esBasica;
+  });
+
+  return categoriasFiltradas;
+}
+
+// Filtrado para plan premium: todas las categorías pero bloqueando canales específicos
+function filterPremiumContent(premiumData) {
+  if (!Array.isArray(premiumData)) {
+    return premiumData;
+  }
+
+  console.log('🔍 Filtrando contenido premium...');
+
+  // Recorrer todas las categorías y bloquear canales específicos
+  return premiumData.map(categoria => {
+    if (!Array.isArray(categoria.lista)) {
+      return categoria;
+    }
+
+    const listaOriginal = categoria.lista.length;
+    const listaFiltrada = categoria.lista.filter(canal => {
+      const nombreCanal = canal.name || '';
+      const bloqueado = CANALES_BLOQUEADOS_PREMIUM.includes(nombreCanal);
+      if (bloqueado) {
+        console.log(`  ❌ Bloqueando canal en ${categoria.name}: ${nombreCanal}`);
+      }
+      return !bloqueado;
+    });
+
+    if (listaOriginal !== listaFiltrada.length) {
+      console.log(`  📺 ${categoria.name}: ${listaOriginal} → ${listaFiltrada.length} canales`);
+    }
+
+    return {
+      ...categoria,
+      lista: listaFiltrada
+    };
+  });
+}
+
+// Endpoint para limpiar caché manualmente (admin)
+app.post('/admin/clear-cache', requireAdminAuth, (req, res) => {
+  cachedPremiumData = null;
+  lastFetch = 0;
+  console.log('🗑️ Caché limpiado');
+  return res.json({ 
+    success: true, 
+    message: 'Caché limpiado exitosamente' 
+  });
 });
 
 // ==================== ENDPOINT DE PRUEBA ====================
