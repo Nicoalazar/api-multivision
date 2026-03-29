@@ -608,23 +608,50 @@ app.post('/admin/clear-cache', requireAdminAuth, (req, res) => {
   });
 });
 
-// =================== ENDPOINT MAGMA ===================
+// =================== ENDPOINT AUTH MAGMA ===================
 
-app.get('/magma', (req, res) => {
-  res.json({
-   "playlists": [
-    {
-      "url": process.env.MAGMA_URL1,
-      "username": process.env.MAGMA_USER1,
-      "password": process.env.MAGMA_PASS1
-    },
-    {
-      "url": process.env.MAGMA_URL2,
-      "username": process.env.MAGMA_USER2,
-      "password": process.env.MAGMA_PASS2
+app.post('/auth', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Usuario y contraseña son requeridos' });
     }
-    ]
-  });
+
+    const user = await Usuario.findOne({
+      email: username.toLowerCase().trim(),
+      activo: true
+    });
+
+    if (!user) {
+      return res.status(401).json({ error: 'Credenciales incorrectas o usuario inactivo' });
+    }
+
+    const passwordValida = await bcrypt.compare(password, user.password);
+    if (!passwordValida) {
+      return res.status(401).json({ error: 'Credenciales incorrectas' });
+    }
+
+    return res.json({
+      token: user._id.toString(),
+      smarters: [
+        {
+          url: process.env.MAGMA_URL1,
+          username: process.env.MAGMA_USER1,
+          password: process.env.MAGMA_PASS1
+        },
+        {
+          url: process.env.MAGMA_URL2,
+          username: process.env.MAGMA_USER2,
+          password: process.env.MAGMA_PASS2
+        }
+      ]
+    });
+
+  } catch (error) {
+    console.error('Error en /magma:', error);
+    return res.status(500).json({ error: 'Error del servidor' });
+  }
 });
 
 
