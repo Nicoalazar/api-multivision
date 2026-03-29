@@ -608,6 +608,26 @@ app.post('/admin/clear-cache', requireAdminAuth, (req, res) => {
   });
 });
 
+// =================== ENDPOINT MAGMA ===================
+
+app.get('/magma', (req, res) => {
+  res.json({
+   "playlists": [
+    {
+      "url": process.env.MAGMA_URL1,
+      "username": process.env.MAGMA_USER1,
+      "password": process.env.MAGMA_PASS1
+    },
+    {
+      "url": process.env.MAGMA_URL2,
+      "username": process.env.MAGMA_USER2,
+      "password": process.env.MAGMA_PASS2
+    }
+    ]
+  });
+});
+
+
 // ==================== ENDPOINT DE PRUEBA ====================
 
 app.get('/', (req, res) => {
